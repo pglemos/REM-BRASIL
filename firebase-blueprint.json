@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "headquarters": {
+      "title": "Sede",
+      "description": "Unidade local do REM",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "status": { "type": "string", "enum": ["em implantação", "aguardando 1ª edição", "homologada", "inativa"] },
+        "director_id": { "type": "string" }
+      },
+      "required": ["name", "city", "state", "status"]
+    },
+    "editions": {
+      "title": "Edição",
+      "description": "Instância de um evento REM",
+      "type": "object",
+      "properties": {
+        "headquarters_id": { "type": "string" },
+        "name": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["rascunho", "em preparação", "pronta", "em execução", "concluída"] }
+      },
+      "required": ["headquarters_id", "name", "start_date", "end_date", "status"]
+    },
+    "users": {
+      "title": "Usuário",
+      "description": "Usuário do sistema",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/headquarters/{headquartersId}": {
+      "schema": "headquarters",
+      "description": "Coleção de sedes"
+    },
+    "/editions/{editionId}": {
+      "schema": "editions",
+      "description": "Coleção de edições"
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Coleção de usuários"
+    }
+  }
+}
