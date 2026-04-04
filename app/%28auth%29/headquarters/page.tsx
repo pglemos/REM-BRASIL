@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Modal } from '@/components/Modal';
 
 export default function SedesPage() {
-  const { role } = useAuth();
+  const auth = useAuth();
+  const role = auth?.role;
   const [loading, setLoading] = useState(true);
   const [headquarters, setHeadquarters] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);

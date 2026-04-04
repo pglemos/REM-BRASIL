@@ -1,6 +1,45 @@
+'use client';
+import { useState, useEffect } from 'react';
 import { CalendarDays, Plus, Search, MoreVertical } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import { Modal } from '@/components/Modal';
 
 export default function EditionsPage() {
+  const auth = useAuth();
+  const role = auth?.role;
+  const [loading, setLoading] = useState(true);
+  const [editions, setEditions] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newEdition, setNewEdition] = useState({ name: '', headquarters_id: '', start_date: '', end_date: '', status: 'Em Preparação' });
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      const { data } = await supabase
+        .from('editions')
+        .select('*, headquarters(name)');
+      
+      if (data) setEditions(data);
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
+
+  async function handleAddEdition() {
+    const { error } = await supabase.from('editions').insert([newEdition]);
+    if (!error) {
+      setIsModalOpen(false);
+      // Refresh data
+      const { data } = await supabase
+        .from('editions')
+        .select('*, headquarters(name)');
+      if (data) setEditions(data);
+    }
+  }
+
+  if (loading) return <div className="p-8">Carregando...</div>;
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
