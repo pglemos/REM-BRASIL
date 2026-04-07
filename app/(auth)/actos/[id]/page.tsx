@@ -35,10 +35,26 @@ export default function ActoDetailsPage() {
   const [loading, setLoading] = useState(true);
   
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
+
+  const handlePlayVideo = async (asset: any) => {
+    try {
+      const { data, error } = await supabase.storage.from('media-assets').createSignedUrl(asset.storage_path, 3600);
+      if (error) throw error;
+      if (data?.signedUrl) {
+        setSelectedVideoUrl(data.signedUrl);
+        setIsVideoModalOpen(true);
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar link de vídeo:', error);
+      alert('Erro ao carregar o vídeo.');
+    }
+  };
 
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -340,7 +356,7 @@ export default function ActoDetailsPage() {
     }
   };
 
-  const updateActoStatus = async (newStatus: string) => {
+  const updateActoStatus = async (newStatus: string, note: string = '') => {
     if (!hasAccess) return;
     
     // 1. Update acto status
@@ -356,13 +372,15 @@ export default function ActoDetailsPage() {
     }
 
     // 2. Log transition
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: logError } = await supabase
       .from('acto_runtime_logs')
       .insert([{
         acto_id: actoId,
         from_status: acto.current_status,
         to_status: newStatus,
-        note: `Status alterado manualmente para ${newStatus.replace(/_/g, ' ')}`
+        changed_by: user?.id,
+        note: note || `Status alterado manualmente para ${newStatus.replace(/_/g, ' ')}`
       }]);
       
     if (logError) {
@@ -628,11 +646,11 @@ export default function ActoDetailsPage() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => handleDownloadAttachment(asset)}
+                        onClick={() => asset.asset_type === 'video' ? handlePlayVideo(asset) : handleDownloadAttachment(asset)}
                         className="p-2 text-on-surface-variant hover:text-pulse-cyan transition-colors flex-shrink-0"
-                        title="Baixar anexo"
+                        title={asset.asset_type === 'video' ? "Reproduzir vídeo" : "Baixar anexo"}
                       >
-                        <Download className="w-4 h-4" />
+                        {asset.asset_type === 'video' ? <PlayCircle className="w-4 h-4" /> : <Download className="w-4 h-4" />}
                       </button>
                     </li>
                   ))}
@@ -640,6 +658,22 @@ export default function ActoDetailsPage() {
               )}
             </div>
           </section>
+
+          <Modal
+            isOpen={isVideoModalOpen}
+            onClose={() => {
+              setIsVideoModalOpen(false);
+              setSelectedVideoUrl(null);
+            }}
+            title="Reproduzir Vídeo"
+          >
+            {selectedVideoUrl && (
+              <video controls className="w-full rounded-sm">
+                <source src={selectedVideoUrl} type="video/mp4" />
+                Seu navegador não suporta a reprodução de vídeo.
+              </video>
+            )}
+          </Modal>
 
           {/* Step by Step / Script */}
           <section className="bg-white border border-outline/30 rounded-sm shadow-sm overflow-hidden">
@@ -747,7 +781,12 @@ export default function ActoDetailsPage() {
                   {checklists.map(checklist => (
                     <div key={checklist.id} className="p-6">
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs technical-label font-black uppercase text-on-surface">{checklist.title}</h3>
+                        <h3 className="text-xs technical-label font-black uppercase text-on-surface flex items-center gap-2">
+                          {checklist.title}
+                          {checklist.checklist_items?.length > 0 && checklist.checklist_items.every((item: any) => item.current_status === 'completed') && (
+                            <span className="text-green-600"><CheckSquare className="w-4 h-4" /></span>
+                          )}
+                        </h3>
                         {hasAccess && (
                           <button 
                             onClick={() => {
@@ -773,7 +812,14 @@ export default function ActoDetailsPage() {
                             <div>
                               <p className={`text-sm ${item.current_status === 'completed' ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
                                 {item.label}
-                                {item.is_critical && <span className="ml-2 text-[10px] technical-label font-black uppercase text-action-red bg-action-red/10 px-1 py-0.5 rounded-sm">Crítico</span>}
+                                {item.is_critical && item.current_status !== 'completed' && (
+                                  <span className="ml-2 text-[10px] technical-label font-black uppercase text-action-red bg-action-red/10 px-1 py-0.5 rounded-sm flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3" /> Crítico Pendente
+                                  </span>
+                                )}
+                                {item.is_critical && item.current_status === 'completed' && (
+                                  <span className="ml-2 text-[10px] technical-label font-black uppercase text-green-600 bg-green-600/10 px-1 py-0.5 rounded-sm">Crítico Concluído</span>
+                                )}
                               </p>
                               {item.quantity && <p className="text-[10px] text-on-surface-variant">Qtd: {item.quantity}</p>}
                             </div>
