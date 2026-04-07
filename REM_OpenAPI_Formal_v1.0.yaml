@@ -1,0 +1,407 @@
+openapi: 3.1.0
+info:
+  title: REM OS API
+  version: 1.0.0
+  description: API formal do REM OS / REM Control Center Brasil
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+  - name: Public
+  - name: Headquarters
+  - name: Editions
+  - name: Couples
+  - name: Participants
+  - name: Actos
+  - name: Checklists
+  - name: Content
+  - name: Incidents
+  - name: Homologation
+  - name: Dashboards
+  - name: Notifications
+  - name: Audit
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+      required: [error]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    LoginResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+    HeadquartersCreate:
+      type: object
+      required: [name, country, state, city, local_director_user_id, first_edition_planned_at]
+      properties:
+        name: { type: string }
+        country: { type: string }
+        state: { type: string }
+        city: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        local_director_user_id: { type: string, format: uuid }
+        first_edition_planned_at: { type: string, format: date-time }
+    EditionCreate:
+      type: object
+      required: [headquarters_id, name, start_at, end_at, venue_name, general_manager_user_id, template_version]
+      properties:
+        headquarters_id: { type: string, format: uuid }
+        name: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        venue_name: { type: string }
+        venue_address: { type: string }
+        general_manager_user_id: { type: string, format: uuid }
+        template_version: { type: string }
+    CoupleCreate:
+      type: object
+      required: [participant_a, participant_b, primary_phone, status]
+      properties:
+        participant_a:
+          $ref: '#/components/schemas/ParticipantInline'
+        participant_b:
+          $ref: '#/components/schemas/ParticipantInline'
+        primary_phone: { type: string }
+        primary_email: { type: string, format: email, nullable: true }
+        status: { type: string }
+    ParticipantInline:
+      type: object
+      required: [full_name]
+      properties:
+        full_name: { type: string }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, nullable: true }
+    HealthFlags:
+      type: object
+      properties:
+        allergy_notes: { type: string, nullable: true }
+        restriction_notes: { type: string, nullable: true }
+        medication_notes: { type: string, nullable: true }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        title: { type: string }
+        body: { type: string }
+        read_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      responses:
+        '204': { description: No Content }
+  /auth/me:
+    get:
+      tags: [Auth]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+  /public/home:
+    get:
+      tags: [Public]
+      security: []
+      responses:
+        '200': { description: Public home content }
+  /public/calendar:
+    get:
+      tags: [Public]
+      security: []
+      parameters:
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: headquarters_slug
+          schema: { type: string }
+        - in: query
+          name: month
+          schema: { type: integer }
+        - in: query
+          name: year
+          schema: { type: integer }
+      responses:
+        '200': { description: Public calendar }
+  /public/headquarters/{slug}:
+    get:
+      tags: [Public]
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Public headquarters page }
+        '404': { description: Not found }
+  /public/editions/{slug}:
+    get:
+      tags: [Public]
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Public edition page }
+        '404': { description: Not found }
+  /headquarters:
+    get:
+      tags: [Headquarters]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: state
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200': { description: Headquarters list }
+    post:
+      tags: [Headquarters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HeadquartersCreate' }
+      responses:
+        '201': { description: Created }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /headquarters/{id}:
+    get:
+      tags: [Headquarters]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Headquarters detail }
+    patch:
+      tags: [Headquarters]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Updated }
+  /editions:
+    get:
+      tags: [Editions]
+      responses:
+        '200': { description: Editions list }
+    post:
+      tags: [Editions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EditionCreate' }
+      responses:
+        '201': { description: Created }
+  /editions/{id}/readiness:
+    get:
+      tags: [Editions]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Readiness status }
+  /editions/{id}/couples:
+    get:
+      tags: [Couples]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Couples list }
+    post:
+      tags: [Couples]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoupleCreate' }
+      responses:
+        '201': { description: Created }
+        '409':
+          description: Duplicate couple or A/B inversion
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /participants/{id}/health-flags:
+    get:
+      tags: [Participants]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Health flags
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthFlags' }
+    put:
+      tags: [Participants]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HealthFlags' }
+      responses:
+        '200': { description: Updated }
+  /editions/{id}/actos:
+    get:
+      tags: [Actos]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Ordered actos }
+  /actos/{id}/status-transitions:
+    post:
+      tags: [Actos]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_status]
+              properties:
+                to_status: { type: string }
+      responses:
+        '200': { description: Transition applied }
+        '409': { description: Invalid transition }
+  /notifications:
+    get:
+      tags: [Notifications]
+      parameters:
+        - in: query
+          name: unread_only
+          schema: { type: boolean }
+        - in: query
+          name: type
+          schema: { type: string }
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unread_count: { type: integer }
+  /notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Marked as read }
+  /audit-events:
+    get:
+      tags: [Audit]
+      responses:
+        '200': { description: Audit list }

@@ -3,55 +3,83 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 
+export type UserRole = {
+  role_code: string;
+  scope_type: string;
+  headquarters_id?: string;
+  edition_id?: string;
+};
+
 type AuthContextType = {
   user: User | null;
-  role: string | null;
+  roles: UserRole[];
   loading: boolean;
+  signOut: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchRoles = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select(`
+        headquarters_id,
+        edition_id,
+        roles (
+          code,
+          scope_type
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('is_active', true);
+
+    if (data && !error) {
+      const mappedRoles: UserRole[] = data.map((ur: any) => ({
+        role_code: ur.roles.code,
+        scope_type: ur.roles.scope_type,
+        headquarters_id: ur.headquarters_id,
+        edition_id: ur.edition_id,
+      }));
+      setRoles(mappedRoles);
+    } else {
+      setRoles([]);
+    }
+  };
 
   useEffect(() => {
     async function getSession() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+      if (session?.user) {
         setUser(session.user);
-        const { data: profile } = await supabase
-          .from('staff')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) setRole(profile.role);
+        await fetchRoles(session.user.id);
       }
       setLoading(false);
     }
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        supabase
-          .from('staff')
-          .select('role')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) setRole(data.role);
-          });
+        await fetchRoles(session.user.id);
       } else {
-        setRole(null);
+        setRoles([]);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const value = { user, role, loading };
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const value = { user, roles, loading, signOut };
   return (
     <AuthContext.Provider value={value}>
       {children}
@@ -59,4 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

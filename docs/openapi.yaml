@@ -1,0 +1,201 @@
+openapi: 3.0.3
+info:
+  title: REM OS API
+  description: >
+    Documentação inicial da API REST do REM OS. 
+    Como o projeto utiliza Supabase, a maior parte desta API é gerada automaticamente 
+    via PostgREST com base no schema do banco de dados PostgreSQL.
+  version: 1.0.0
+servers:
+  - url: https://{project_ref}.supabase.co/rest/v1
+    description: Servidor de Produção/Staging (Supabase)
+    variables:
+      project_ref:
+        default: YOUR_SUPABASE_PROJECT_REF
+        description: O ID do projeto Supabase
+security:
+  - bearerAuth: []
+  - apiKey: []
+tags:
+  - name: Headquarters
+    description: Gerenciamento de Sedes
+  - name: Editions
+    description: Gerenciamento de Edições do REM
+  - name: Actos
+    description: Acompanhamento e execução de ACTOs
+  - name: Content
+    description: CMS de Conteúdos e Mídia
+paths:
+  /headquarters:
+    get:
+      summary: Lista todas as sedes
+      tags: [Headquarters]
+      parameters:
+        - in: query
+          name: select
+          schema:
+            type: string
+          description: Filtro de colunas (PostgREST syntax)
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Headquarter'
+    post:
+      summary: Cria uma nova sede
+      tags: [Headquarters]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeadquarterInput'
+      responses:
+        '201':
+          description: Sede criada com sucesso
+
+  /editions:
+    get:
+      summary: Lista edições
+      tags: [Editions]
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Edition'
+
+  /actos:
+    get:
+      summary: Lista ACTOs
+      tags: [Actos]
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Acto'
+
+  /file_assets:
+    get:
+      summary: Lista ativos de mídia e arquivos
+      tags: [Content]
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileAsset'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT retornado no login do Supabase Auth
+    apiKey:
+      type: apiKey
+      in: header
+      name: apikey
+      description: Supabase Anon/Service Key
+  schemas:
+    Headquarter:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [nacional, regional, local]
+        status:
+          type: string
+          enum: [active, inactive, pending]
+        address_city:
+          type: string
+        address_state:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    HeadquarterInput:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [nacional, regional, local]
+        address_city:
+          type: string
+        address_state:
+          type: string
+    Edition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        headquarters_id:
+          type: string
+          format: uuid
+        year:
+          type: integer
+        theme:
+          type: string
+        status:
+          type: string
+          enum: [planning, registration_open, in_progress, completed, cancelled]
+    Acto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        edition_id:
+          type: string
+          format: uuid
+        acto_type:
+          type: string
+          enum: [acto_1, acto_2, acto_3, acto_4, acto_5, acto_6, acto_7]
+        status:
+          type: string
+          enum: [not_started, planning, ready, in_progress, completed, cancelled]
+        scheduled_date:
+          type: string
+          format: date-time
+    FileAsset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        asset_type:
+          type: string
+          enum: [pdf, image, video, audio, other]
+        storage_path:
+          type: string
+        original_filename:
+          type: string
+        size_bytes:
+          type: integer
+        created_at:
+          type: string
+          format: date-time

@@ -1,7 +1,21 @@
+'use client';
+
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/login');
+    router.refresh();
+  };
+
   return (
     <div className="min-h-screen bg-surface-container-low text-on-surface">
       {/* TopNavBar */}
@@ -14,14 +28,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-full">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
+          <NotificationBell />
           <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors duration-200 rounded-full">
             <span className="material-symbols-outlined">settings</span>
           </button>
           <div className="h-8 w-8 rounded-full bg-pulse-cyan/10 flex items-center justify-center overflow-hidden border border-pulse-cyan/20">
-            <img alt="Administrator Profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYzz0s4AVkQ8wsqybFxpEedJ2XUD7miORud3Qs6HTyuO7zW3Qe_NW__dQ7zUyAQnvGhepD3Mf7s3917gr760VTbrtALjJgxKmN42B2oRHLbY8FJ34_VQLRMB0oVNecZYZ5qdbSzygAKi8TIldNC2DoeoAFvCHjbKlRhmZLott3mSJ1e8DeJeR8dsTU3u0jy0lyNBdHDGclB3s2B67K-IMvpGBGstRRPe7Ct8c40mIGKTd77TSls3-CXMMtwg75iZsfNI-c1vXiyxA" />
+            <span className="text-xs font-bold text-pulse-cyan">{user?.email?.charAt(0).toUpperCase() || 'A'}</span>
           </div>
         </div>
       </header>
@@ -39,9 +51,12 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-pulse-cyan hover:bg-surface-container font-['Inter'] text-sm uppercase tracking-[0.08em] font-bold transition-all">
             <span className="material-symbols-outlined">dashboard</span> National Dashboard
+          </Link>
+          <Link href="/local-dashboard" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-pulse-cyan hover:bg-surface-container font-['Inter'] text-sm uppercase tracking-[0.08em] font-bold transition-all">
+            <span className="material-symbols-outlined">space_dashboard</span> Local Dashboard
           </Link>
           <Link href="/headquarters" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-pulse-cyan hover:bg-surface-container font-['Inter'] text-sm uppercase tracking-[0.08em] font-bold transition-all">
             <span className="material-symbols-outlined">location_city</span> Local HQs
@@ -64,6 +79,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Link href="/media" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-pulse-cyan hover:bg-surface-container font-['Inter'] text-sm uppercase tracking-[0.08em] font-bold transition-all">
             <span className="material-symbols-outlined">folder_open</span> Mídia & Arquivos
           </Link>
+          <Link href="/staff" className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-pulse-cyan hover:bg-surface-container font-['Inter'] text-sm uppercase tracking-[0.08em] font-bold transition-all">
+            <span className="material-symbols-outlined">group</span> Staff & Casais
+          </Link>
         </nav>
         <div className="p-4">
           <button className="w-full py-3 bg-action-orange text-white font-black uppercase text-xs tracking-widest active:scale-95 transition-transform shadow-lg shadow-action-orange/20">
@@ -74,9 +92,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Link href="/support" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-pulse-cyan font-['Inter'] text-xs uppercase tracking-widest font-bold">
             <span className="material-symbols-outlined text-sm">help</span> Support
           </Link>
-          <Link href="/login" className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-pulse-cyan font-['Inter'] text-xs uppercase tracking-widest font-bold">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-pulse-cyan font-['Inter'] text-xs uppercase tracking-widest font-bold text-left">
             <span className="material-symbols-outlined text-sm">logout</span> Logout
-          </Link>
+          </button>
         </div>
       </aside>
 

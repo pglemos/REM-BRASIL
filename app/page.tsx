@@ -1,9 +1,36 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/components/Logo';
 import { Facebook, Instagram, CheckSquare, Mic, Laptop, ArrowRight, MapPin, Calendar } from 'lucide-react';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function PublicHome() {
+  const [editions, setEditions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  useEffect(() => {
+    async function fetchPublicEditions() {
+      const { data, error } = await supabase
+        .from('editions')
+        .select('*, headquarters(name, city, state)')
+        .eq('is_public', true)
+        .order('start_at', { ascending: true })
+        .limit(6);
+      
+      if (!error) setEditions(data || []);
+      setLoading(false);
+    }
+    fetchPublicEditions();
+  }, [supabase]);
+
   return (
     <div className="min-h-screen bg-rem-white font-sans selection:bg-rem-orange selection:text-rem-white">
       
@@ -13,12 +40,12 @@ export default function PublicHome() {
           <Logo className="w-16 h-16 md:w-20 md:h-20" layout="horizontal" showText={true} theme="dark" />
         </Link>
         <nav className="hidden md:flex items-center gap-10 text-rem-white font-bold text-sm tracking-[0.2em] uppercase">
-          <Link href="#" className="hover:text-rem-cyan transition-colors relative group">
-            Experiência
+          <Link href="/calendario" className="hover:text-rem-cyan transition-colors relative group">
+            Calendário
             <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-rem-cyan transition-all group-hover:w-full"></span>
           </Link>
           <Link href="#" className="hover:text-rem-cyan transition-colors relative group">
-            Contato
+            Experiência
             <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-rem-cyan transition-all group-hover:w-full"></span>
           </Link>
           <Link href="#" className="hover:text-rem-cyan transition-colors relative group">
@@ -54,9 +81,9 @@ export default function PublicHome() {
           <p className="mt-8 text-rem-gray font-serif text-lg md:text-xl max-w-2xl mx-auto font-light tracking-wide">
             O evento que transformará seu casamento para sempre.
           </p>
-          <button className="mt-12 bg-rem-orange text-rem-white font-bold text-sm md:text-base uppercase tracking-[0.2em] px-10 py-5 rounded-full hover:bg-rem-red transition-all hover:shadow-[0_0_30px_rgba(255,85,0,0.5)] hover:-translate-y-1 flex items-center gap-3 mx-auto">
+          <Link href="/calendario" className="mt-12 bg-rem-orange text-rem-white font-bold text-sm md:text-base uppercase tracking-[0.2em] px-10 py-5 rounded-full hover:bg-rem-red transition-all hover:shadow-[0_0_30px_rgba(255,85,0,0.5)] hover:-translate-y-1 flex items-center gap-3 mx-auto w-fit">
             Participe do Desafio <ArrowRight size={20} />
-          </button>
+          </Link>
         </div>
       </section>
 
@@ -109,44 +136,47 @@ export default function PublicHome() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             
-            {/* Event Card Template */}
-            {[
-              { city: 'Equador', date: '04 e 05 de Abril', lang: 'Em Espanhol', flag: '🇪🇨', color: 'bg-rem-cyan', text: 'text-rem-teal-dark' },
-              { city: 'Medellín', date: '18 e 19 de Abril', lang: 'Em Espanhol', flag: '🇨🇴', color: 'bg-[#FFD700]', text: 'text-rem-black' },
-              { city: 'Flórida', date: '24 e 25 de Abril', lang: 'Inglês, Espanhol, Português', flag: '🇺🇸', color: 'bg-rem-teal', text: 'text-rem-white' },
-              { city: 'Europa', date: '29 e 30 de Abril', lang: 'Em Português', flag: '🇵🇹', color: 'bg-rem-red', text: 'text-rem-white' },
-              { city: 'São Paulo', date: '29 e 30 de Maio', lang: 'Em Português', flag: '🇧🇷', color: 'bg-rem-teal-dark', text: 'text-rem-white' },
-            ].map((event, i) => (
-              <div key={i} className="group bg-rem-white rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)] transform hover:-translate-y-2 transition-all duration-500 border border-gray-100">
-                <div className={`h-48 ${event.color} relative flex items-center justify-center p-6 overflow-hidden`}>
-                  <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                  <h3 className={`relative z-10 text-5xl font-display ${event.text} uppercase text-center leading-none tracking-wide group-hover:scale-110 transition-transform duration-500`}>{event.city}</h3>
-                </div>
-                
-                <div className="bg-rem-black text-rem-white p-6">
-                  <div className="flex items-center gap-3 mb-3 text-rem-gray">
-                    <Calendar size={18} className="text-rem-cyan" />
-                    <span className="font-bold text-sm uppercase tracking-wider">{event.date}</span>
-                  </div>
-                  <div className="flex items-center gap-3 mb-6 text-rem-gray">
-                    <MapPin size={18} className="text-rem-cyan" />
-                    <span className="font-bold text-sm uppercase tracking-wider">{event.lang}</span>
-                  </div>
-                  <div className="inline-block bg-rem-teal-dark text-rem-cyan text-xs font-bold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-6 border border-rem-cyan/30">
-                    Inscrições Abertas {event.flag}
+            {loading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="h-96 bg-gray-100 animate-pulse rounded-2xl"></div>
+              ))
+            ) : editions.length === 0 ? (
+              <div className="col-span-full text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 font-bold uppercase tracking-widest">
+                Nenhum evento público agendado no momento.
+              </div>
+            ) : (
+              editions.map((edition) => (
+                <div key={edition.id} className="group bg-rem-white rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)] transform hover:-translate-y-2 transition-all duration-500 border border-gray-100">
+                  <div className={`h-48 bg-rem-teal-dark relative flex items-center justify-center p-6 overflow-hidden`}>
+                    <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                    <h3 className={`relative z-10 text-4xl font-display text-rem-white uppercase text-center leading-none tracking-wide group-hover:scale-110 transition-transform duration-500`}>{edition.headquarters?.city}</h3>
                   </div>
                   
-                  <div className="space-y-3">
-                    <button className="w-full bg-rem-orange text-rem-white font-bold py-4 rounded-xl hover:bg-rem-red transition-colors uppercase text-sm tracking-widest flex justify-center items-center gap-2">
-                      Inscrições <ArrowRight size={16} />
-                    </button>
-                    <button className="w-full bg-transparent border-2 border-rem-white/20 text-rem-white font-bold py-4 rounded-xl hover:bg-rem-white/10 transition-colors uppercase text-sm tracking-widest">
-                      Dúvidas
-                    </button>
+                  <div className="bg-rem-black text-rem-white p-6">
+                    <div className="flex items-center gap-3 mb-3 text-rem-gray">
+                      <Calendar size={18} className="text-rem-cyan" />
+                      <span className="font-bold text-sm uppercase tracking-wider">{new Date(edition.start_at).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mb-6 text-rem-gray">
+                      <MapPin size={18} className="text-rem-cyan" />
+                      <span className="font-bold text-sm uppercase tracking-wider">{edition.headquarters?.name}</span>
+                    </div>
+                    <div className="inline-block bg-rem-teal-dark text-rem-cyan text-xs font-bold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-6 border border-rem-cyan/30">
+                      Inscrições Abertas
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Link 
+                        href={`/${edition.public_slug || edition.id}`}
+                        className="w-full bg-rem-orange text-rem-white font-bold py-4 rounded-xl hover:bg-rem-red transition-colors uppercase text-sm tracking-widest flex justify-center items-center gap-2"
+                      >
+                        Inscrições <ArrowRight size={16} />
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
 
             {/* Coming Soon Card */}
             <div className="bg-gray-50 rounded-2xl overflow-hidden shadow-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-10 text-center min-h-[400px]">
@@ -155,9 +185,9 @@ export default function PublicHome() {
               </div>
               <h3 className="text-3xl font-display text-rem-teal-dark uppercase leading-tight mb-4">Em breve na<br/>Sua Cidade</h3>
               <p className="text-gray-500 font-serif mb-8">Uma experiência de dois dias que transformará seu casamento.</p>
-              <button className="bg-rem-teal-dark text-rem-white font-bold py-3 px-8 rounded-full hover:bg-rem-teal transition-colors uppercase text-sm tracking-widest">
-                Solicitar Info
-              </button>
+              <Link href="/calendario" className="bg-rem-teal-dark text-rem-white font-bold py-3 px-8 rounded-full hover:bg-rem-teal transition-colors uppercase text-sm tracking-widest">
+                Ver Calendário
+              </Link>
             </div>
 
           </div>
@@ -325,10 +355,10 @@ export default function PublicHome() {
           <div>
             <h4 className="text-rem-white font-bold uppercase tracking-widest mb-6">Links Rápidos</h4>
             <ul className="space-y-4">
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Início</Link></li>
+              <li><Link href="/" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Início</Link></li>
               <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Experiência REM</Link></li>
               <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">5 Coisas REM</Link></li>
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Eventos</Link></li>
+              <li><Link href="/calendario" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Eventos</Link></li>
             </ul>
           </div>
           
