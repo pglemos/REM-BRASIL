@@ -10,6 +10,7 @@ export default function MediaPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [stats, setStats] = useState({
@@ -19,6 +20,12 @@ export default function MediaPage() {
     imageCount: 0,
     otherCount: 0
   });
+
+  const filteredAssets = assets.filter(asset => 
+    asset.original_filename?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.asset_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    asset.content_versions?.version_number?.toString().includes(searchTerm)
+  );
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -229,23 +236,32 @@ export default function MediaPage() {
       <div>
         <div className="flex items-center justify-between mb-8">
           <h3 className="technical-label text-[10px] font-black uppercase text-on-surface-variant">Ativos Recentes</h3>
-          <div className="flex gap-2">
-            <button className="w-8 h-8 flex items-center justify-center bg-surface-container border border-outline/50 text-pulse-cyan">
-              <Grid className="w-4 h-4" />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center bg-white border border-outline/50 text-on-surface-variant hover:bg-surface-container transition-all">
-              <List className="w-4 h-4" />
-            </button>
+          <div className="flex gap-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-4 py-2 border border-outline/50 rounded-sm text-xs technical-label font-black focus:outline-none focus:ring-pulse-cyan focus:border-pulse-cyan"
+              placeholder="Buscar arquivos..."
+            />
+            <div className="flex gap-2">
+              <button className="w-8 h-8 flex items-center justify-center bg-surface-container border border-outline/50 text-pulse-cyan">
+                <Grid className="w-4 h-4" />
+              </button>
+              <button className="w-8 h-8 flex items-center justify-center bg-white border border-outline/50 text-on-surface-variant hover:bg-surface-container transition-all">
+                <List className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
         
         {loading ? (
           <div className="p-8 text-center text-on-surface-variant">Carregando ativos...</div>
-        ) : assets.length === 0 ? (
+        ) : filteredAssets.length === 0 ? (
           <div className="p-8 text-center text-on-surface-variant bg-white border border-outline/30 rounded-sm">Nenhum ativo encontrado.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {assets.map((asset) => (
+            {filteredAssets.map((asset) => (
               <div key={asset.id} className="bg-white border border-outline/30 rounded-sm overflow-hidden shadow-sm hover:shadow-md transition-all group">
                 <div className="relative aspect-video overflow-hidden bg-surface-container flex items-center justify-center">
                   {getAssetIcon(asset.asset_type)}

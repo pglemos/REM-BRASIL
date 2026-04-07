@@ -37,27 +37,69 @@ export default function ActoDetailsPage() {
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
+  const [isPreviewPanelOpen, setIsPreviewPanelOpen] = useState(false);
+  const [selectedPreviewUrl, setSelectedPreviewUrl] = useState<string | null>(null);
+  const [selectedPreviewType, setSelectedPreviewType] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
+  const [checklistFilter, setChecklistFilter] = useState<'todos' | 'criticos' | 'pendentes' | 'concluidos'>('todos');
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
 
-  const handlePlayVideo = async (asset: any) => {
+  const fetchComments = useCallback(async () => {
+    const { data } = await supabase
+      .from('acto_comments')
+      .select('*, users(full_name)')
+      .eq('acto_id', actoId)
+      .order('created_at', { ascending: true });
+    if (data) setComments(data);
+  }, [supabase, actoId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('acto_comments').insert({
+      acto_id: actoId,
+      user_id: user?.id,
+      comment: newComment
+    });
+    setNewComment('');
+    fetchComments();
+  };
+
+  const handlePreviewAttachment = async (asset: any) => {
     try {
       const { data, error } = await supabase.storage.from('media-assets').createSignedUrl(asset.storage_path, 3600);
       if (error) throw error;
       if (data?.signedUrl) {
-        setSelectedVideoUrl(data.signedUrl);
-        setIsVideoModalOpen(true);
+        setSelectedPreviewUrl(data.signedUrl);
+        setSelectedPreviewType(asset.mime_type);
+        setIsPreviewPanelOpen(true);
       }
     } catch (error: any) {
-      console.error('Erro ao gerar link de vídeo:', error);
-      alert('Erro ao carregar o vídeo.');
+      console.error('Erro ao gerar link de preview:', error);
+      alert('Erro ao carregar o arquivo para visualização.');
     }
   };
 
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [incidents, setIncidents] = useState<any[]>([]);
+
+  const incidentSummary = incidents.reduce((acc, incident) => {
+    acc.count++;
+    const severityMap = { 'baixa': 1, 'media': 2, 'alta': 3, 'critica': 4 };
+    if (severityMap[incident.severity as keyof typeof severityMap] > severityMap[acc.highestSeverity as keyof typeof severityMap]) {
+      acc.highestSeverity = incident.severity;
+    }
+    return acc;
+  }, { count: 0, highestSeverity: 'baixa' });
+
   const [runtimeLogs, setRuntimeLogs] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
@@ -199,47 +241,45 @@ export default function ActoDetailsPage() {
   }, [fetchActoData]);
 
   const handleAttachmentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !hasAccess) return;
+    const files = event.target.files;
+    if (!files || files.length === 0 || !hasAccess) return;
 
     setIsUploadingAttachment(true);
     try {
-      let assetType = 'other';
-      if (file.type.startsWith('video/')) assetType = 'video';
-      else if (file.type.startsWith('image/')) assetType = 'image';
-      else if (file.type.startsWith('audio/')) assetType = 'audio';
-      else if (file.type === 'application/pdf') assetType = 'pdf';
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        let assetType = 'other';
+        if (file.type.startsWith('video/')) assetType = 'video';
+        else if (file.type.startsWith('image/')) assetType = 'image';
+        else if (file.type.startsWith('audio/')) assetType = 'audio';
+        else if (file.type === 'application/pdf') assetType = 'pdf';
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `actos/${actoId}/${fileName}`;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `actos/${actoId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('media-assets')
-        .upload(filePath, file);
+        const { error: uploadError } = await supabase.storage
+          .from('media-assets')
+          .upload(filePath, file);
 
-      if (uploadError) {
-        if (uploadError.message.includes('Bucket not found')) {
-          throw new Error('O bucket "media-assets" não existe no Supabase. Por favor, crie-o no painel do Supabase Storage.');
-        }
-        throw uploadError;
+        if (uploadError) throw uploadError;
+
+        const { error: dbError } = await supabase.from('file_assets').insert({
+          acto_id: actoId,
+          asset_type: assetType,
+          storage_path: filePath,
+          original_filename: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+        });
+
+        if (dbError) throw dbError;
       }
-
-      const { error: dbError } = await supabase.from('file_assets').insert({
-        acto_id: actoId,
-        asset_type: assetType,
-        storage_path: filePath,
-        original_filename: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-      });
-
-      if (dbError) throw dbError;
 
       await fetchActoData();
     } catch (error: any) {
-      console.error('Erro no upload de anexo:', error);
-      alert(`Erro ao enviar anexo: ${error.message}`);
+      console.error('Erro no upload de anexos:', error);
+      alert(`Erro ao enviar anexos: ${error.message}`);
     } finally {
       setIsUploadingAttachment(false);
       if (attachmentInputRef.current) attachmentInputRef.current.value = '';
@@ -448,6 +488,44 @@ export default function ActoDetailsPage() {
         {/* Main Content Column */}
         <div className="lg:col-span-2 space-y-8">
           
+          {/* Incident Summary */}
+          {incidents.length > 0 && (
+            <section className="bg-white border border-outline/30 rounded-sm shadow-sm p-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-1">Resumo de Incidentes</h3>
+                <p className="text-3xl font-black text-on-surface">{incidentSummary.count} <span className="text-sm font-bold text-on-surface-variant">registrados</span></p>
+              </div>
+              <div className="text-right">
+                <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-1">Severidade Máxima</h3>
+                <span className={`inline-flex items-center px-3 py-1 text-xs technical-label font-black uppercase rounded-sm ${
+                  incidentSummary.highestSeverity === 'critica' ? 'bg-red-100 text-red-800' :
+                  incidentSummary.highestSeverity === 'alta' ? 'bg-orange-100 text-orange-800' :
+                  incidentSummary.highestSeverity === 'media' ? 'bg-amber-100 text-amber-800' :
+                  'bg-surface-container-high text-on-surface-variant'
+                }`}>
+                  {incidentSummary.highestSeverity}
+                </span>
+              </div>
+            </section>
+          )}
+
+          {/* Pendências Críticas */}
+          {checklists.flatMap(c => c.checklist_items || []).filter((item: any) => item.is_critical && item.current_status === 'pending').length > 0 && (
+            <section className="bg-red-50 border border-red-200 rounded-sm shadow-sm p-6">
+              <h2 className="font-black text-lg uppercase italic flex items-center gap-2 text-red-800 mb-4">
+                <AlertTriangle className="w-5 h-5" /> Pendências Críticas
+              </h2>
+              <ul className="space-y-2">
+                {checklists.flatMap(c => c.checklist_items || []).filter((item: any) => item.is_critical && item.current_status === 'pending').map((item: any) => (
+                  <li key={item.id} className="text-sm text-red-900 font-bold flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-600" />
+                    {item.label}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Execution Control */}
           <section className="bg-white border border-outline/30 rounded-sm shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-outline/30 bg-surface-container/30">
@@ -564,26 +642,35 @@ export default function ActoDetailsPage() {
             </div>
           </section>
 
-          {/* Context & Objectives */}
+          {/* Comments Section */}
           <section className="bg-white border border-outline/30 rounded-sm shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-outline/30 bg-surface-container/30">
               <h2 className="font-black text-lg uppercase italic flex items-center gap-2">
-                <FileText className="w-5 h-5 text-pulse-cyan" /> Contexto e Objetivos
+                <FileText className="w-5 h-5 text-pulse-cyan" /> Comentários e Feedback
               </h2>
             </div>
-            <div className="p-6 space-y-6">
-              {actoVersion ? (
-                <>
-                  <div>
-                    <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-2">Objetivo Principal</h3>
-                    <p className="text-sm text-on-surface leading-relaxed">{actoVersion.objective || 'Não definido.'}</p>
+            <div className="p-6 space-y-4">
+              <div className="space-y-4">
+                {comments.map(comment => (
+                  <div key={comment.id} className="bg-surface-container-low p-4 rounded-sm">
+                    <p className="text-sm font-bold text-on-surface">{comment.users?.full_name}</p>
+                    <p className="text-sm text-on-surface-variant">{comment.comment}</p>
+                    <p className="text-[10px] text-on-surface-variant">{format(new Date(comment.created_at), 'dd/MM HH:mm')}</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-2">Estado Emocional (Antes)</h3>
-                      <p className="text-sm text-on-surface">{actoVersion.emotional_state_before || 'Não definido.'}</p>
-                    </div>
-                    <div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="flex-1 px-4 py-2 border border-outline/50 rounded-sm bg-surface-container text-sm"
+                  placeholder="Adicionar comentário..."
+                />
+                <button onClick={handleAddComment} className="bg-pulse-cyan text-white px-4 py-2 rounded-sm text-xs font-black uppercase">Enviar</button>
+              </div>
+            </div>
+          </section>
                       <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-2">Estado Emocional (Depois)</h3>
                       <p className="text-sm text-on-surface">{actoVersion.emotional_state_after || 'Não definido.'}</p>
                     </div>
@@ -619,6 +706,7 @@ export default function ActoDetailsPage() {
                     ref={attachmentInputRef} 
                     onChange={handleAttachmentUpload} 
                     className="hidden" 
+                    multiple
                   />
                 </>
               )}
@@ -646,11 +734,11 @@ export default function ActoDetailsPage() {
                         </div>
                       </div>
                       <button 
-                        onClick={() => asset.asset_type === 'video' ? handlePlayVideo(asset) : handleDownloadAttachment(asset)}
+                        onClick={() => handlePreviewAttachment(asset)}
                         className="p-2 text-on-surface-variant hover:text-pulse-cyan transition-colors flex-shrink-0"
-                        title={asset.asset_type === 'video' ? "Reproduzir vídeo" : "Baixar anexo"}
+                        title="Visualizar anexo"
                       >
-                        {asset.asset_type === 'video' ? <PlayCircle className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                        {asset.asset_type === 'video' ? <PlayCircle className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                       </button>
                     </li>
                   ))}
@@ -659,21 +747,32 @@ export default function ActoDetailsPage() {
             </div>
           </section>
 
-          <Modal
-            isOpen={isVideoModalOpen}
-            onClose={() => {
-              setIsVideoModalOpen(false);
-              setSelectedVideoUrl(null);
-            }}
-            title="Reproduzir Vídeo"
-          >
-            {selectedVideoUrl && (
-              <video controls className="w-full rounded-sm">
-                <source src={selectedVideoUrl} type="video/mp4" />
-                Seu navegador não suporta a reprodução de vídeo.
-              </video>
-            )}
-          </Modal>
+          {/* Preview Panel */}
+          {isPreviewPanelOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/90" onClick={() => setIsPreviewPanelOpen(false)} />
+              <div className="relative w-full max-w-5xl bg-black shadow-xl rounded-sm overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-4 bg-black/50 text-white">
+                  <h2 className="text-lg font-black uppercase">Visualização</h2>
+                  <button onClick={() => setIsPreviewPanelOpen(false)} className="text-white hover:text-gray-300">Fechar</button>
+                </div>
+                <div className="flex-1 overflow-auto flex items-center justify-center">
+                  {selectedPreviewUrl && (
+                    selectedPreviewType?.startsWith('video/') ? (
+                      <video controls className="w-full max-h-[70vh]">
+                        <source src={selectedPreviewUrl} type="video/mp4" />
+                        Seu navegador não suporta a reprodução de vídeo.
+                      </video>
+                    ) : selectedPreviewType === 'application/pdf' ? (
+                      <iframe src={selectedPreviewUrl} className="w-full h-[70vh]" />
+                    ) : (
+                      <img src={selectedPreviewUrl} alt="Preview" className="max-w-full max-h-[70vh] object-contain" />
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Step by Step / Script */}
           <section className="bg-white border border-outline/30 rounded-sm shadow-sm overflow-hidden">
@@ -772,6 +871,16 @@ export default function ActoDetailsPage() {
               <h2 className="font-black text-lg uppercase italic flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-pulse-cyan" /> Checklists
               </h2>
+              <select
+                value={checklistFilter}
+                onChange={(e) => setChecklistFilter(e.target.value as any)}
+                className="text-[10px] technical-label font-black uppercase bg-transparent focus:outline-none"
+              >
+                <option value="todos">Todos</option>
+                <option value="criticos">Críticos</option>
+                <option value="pendentes">Pendentes</option>
+                <option value="concluidos">Concluídos</option>
+              </select>
             </div>
             <div className="p-0">
               {checklists.length === 0 ? (

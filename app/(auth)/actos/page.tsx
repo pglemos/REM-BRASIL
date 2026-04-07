@@ -17,6 +17,7 @@ export default function ActosPage() {
   const [actos, setActos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [dateRange, setDateRange] = useState<{ start: string, end: string }>({ start: '', end: '' });
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,7 +66,15 @@ export default function ActosPage() {
   }, [selectedEditionId, fetchActos]);
 
   const selectedEdition = editions.find(e => e.id === selectedEditionId);
-  const filteredActos = actos.filter(a => a.day_number === selectedDay);
+  const filteredActos = actos.filter(a => {
+    const matchDay = a.day_number === selectedDay;
+    let matchDate = true;
+    if (dateRange.start && dateRange.end) {
+        const actoDate = new Date(a.planned_start_at);
+        matchDate = actoDate >= new Date(dateRange.start) && actoDate <= new Date(dateRange.end);
+    }
+    return matchDay && matchDate;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -160,6 +169,10 @@ export default function ActosPage() {
             <option value={1}>Dia 1</option>
             <option value={2}>Dia 2</option>
           </select>
+          <div className="flex gap-2">
+            <input type="date" onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} className="bg-surface-container border border-outline/50 text-xs technical-label font-black py-2.5 px-4 focus:ring-pulse-cyan rounded-sm" />
+            <input type="date" onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="bg-surface-container border border-outline/50 text-xs technical-label font-black py-2.5 px-4 focus:ring-pulse-cyan rounded-sm" />
+          </div>
           {hasAccess && (
             <button className="bg-pulse-cyan text-white px-6 py-2.5 font-black text-xs technical-label uppercase shadow-lg shadow-pulse-cyan/20 active:scale-95 transition-all flex items-center gap-2">
               <Plus className="w-4 h-4" /> Novo Acto

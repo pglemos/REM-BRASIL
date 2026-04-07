@@ -30,6 +30,8 @@ export default function ContentPage() {
   const [publicPages, setPublicPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [typeFilter, setTypeFilter] = useState('todos');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPage, setEditingPage] = useState<any>(null);
@@ -85,10 +87,14 @@ export default function ContentPage() {
     else fetchPublicPages();
   }, [activeTab, fetchContents, fetchPublicPages]);
 
-  const filteredContents = contents.filter(c => 
-    c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContents = contents.filter(c => {
+    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          c.type.toLowerCase().includes(searchTerm.toLowerCase());
+    const latestVersion = getLatestVersion(c.content_versions);
+    const matchesStatus = statusFilter === 'todos' || (latestVersion && latestVersion.workflow_status === statusFilter);
+    const matchesType = typeFilter === 'todos' || c.type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
 
   const filteredPublicPages = publicPages.filter(p => 
     p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -222,6 +228,31 @@ export default function ContentPage() {
               placeholder={activeTab === 'official' ? "Buscar manuais e guias..." : "Buscar páginas e notícias..."}
             />
           </div>
+          {activeTab === 'official' && (
+            <div className="flex gap-4">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2.5 border border-outline/50 rounded-sm bg-surface-container text-xs technical-label font-black focus:outline-none focus:ring-pulse-cyan focus:border-pulse-cyan"
+              >
+                <option value="todos">Todos os Status</option>
+                <option value="rascunho">Rascunho</option>
+                <option value="em_revisao">Em Revisão</option>
+                <option value="publicado">Publicado</option>
+                <option value="superseded">Superseded</option>
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="px-3 py-2.5 border border-outline/50 rounded-sm bg-surface-container text-xs technical-label font-black focus:outline-none focus:ring-pulse-cyan focus:border-pulse-cyan"
+              >
+                <option value="todos">Todos os Tipos</option>
+                <option value="ACTO">ACTO</option>
+                <option value="manual">Manual</option>
+                <option value="video">Vídeo</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">

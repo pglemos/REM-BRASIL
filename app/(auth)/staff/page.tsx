@@ -149,6 +149,13 @@ export default function StaffPage() {
   const onStaffSubmit = async (data: StaffFormValues) => {
     if (!edition?.id) return;
 
+    // Check for duplicate user in staff
+    const isDuplicate = staff.some(s => s.user_id === data.user_id && s.id !== editingStaffId);
+    if (isDuplicate) {
+      alert('Este usuário já faz parte da equipe desta edição.');
+      return;
+    }
+
     if (editingStaffId) {
       const { error } = await supabase
         .from('edition_staff')
