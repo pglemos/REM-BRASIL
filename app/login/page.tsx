@@ -4,6 +4,18 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
+function formatAuthError(message: string) {
+  if (message.includes('exceed_egress_quota') || message.includes('Service for this project is restricted')) {
+    return 'Sistema temporariamente indisponível: o projeto Supabase está bloqueado por cota de egress. Libere o spend cap ou faça upgrade do projeto na Supabase para restaurar o acesso.';
+  }
+
+  if (message.toLowerCase().includes('invalid login credentials')) {
+    return 'E-mail ou senha inválidos.';
+  }
+
+  return message;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +34,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(formatAuthError(error.message));
       setLoading(false);
     } else {
       router.push('/dashboard');
@@ -34,7 +46,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-container-low">
       <div className="max-w-md w-full bg-white p-8 rounded-sm shadow-sm border border-outline/30">
         <div className="text-center mb-8">
-          <p className="text-xs technical-label font-black text-pulse-cyan uppercase mb-2">REM OS</p>
+          <p className="text-xs technical-label font-black text-pulse-cyan uppercase mb-2">REM BRASIL</p>
           <h1 className="text-3xl font-black editorial-title text-on-surface uppercase">Acesso Restrito</h1>
           <p className="text-on-surface-variant text-sm mt-2">Control Center Brasil</p>
         </div>
