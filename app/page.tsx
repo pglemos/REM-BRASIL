@@ -1,387 +1,525 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import Image from 'next/image';
-import { Logo } from '@/components/Logo';
-import { Facebook, Instagram, CheckSquare, Mic, Laptop, ArrowRight, MapPin, Calendar } from 'lucide-react';
+import Link from 'next/link';
 import { createBrowserClient } from '@supabase/ssr';
+import {
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Compass,
+  Facebook,
+  Flame,
+  HeartHandshake,
+  Instagram,
+  MapPin,
+  MessageCircle,
+  Play,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
+
+type Edition = {
+  id: string;
+  name?: string | null;
+  public_slug?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
+  headquarters?: {
+    name?: string | null;
+    city?: string | null;
+    state?: string | null;
+  } | null;
+};
+
+type Icon = ComponentType<{ className?: string; strokeWidth?: number }>;
+
+const assets = {
+  logo: '/rem-assets/rem-logo.png',
+  hero: '/rem-assets/outdoor-teaching.jpg',
+  forest: '/rem-assets/forest-briefing.webp',
+  joy: '/rem-assets/couple-joy.webp',
+  prayer: '/rem-assets/prayer-room.jpg',
+  ritual: '/rem-assets/commitment-ritual.webp',
+  lake: '/rem-assets/lake-couple.jpg',
+  embrace: '/rem-assets/embrace-badge.jpg',
+  auditorium: '/rem-assets/auditorium-kiss.jpg',
+  intimate: '/rem-assets/intimate-prayer.jpg',
+  canoe: '/rem-assets/canoe-couple.jpg',
+  mountain: '/rem-assets/mountain-gathering.jpg',
+  water: '/rem-assets/water-run.jpg',
+  stage: '/rem-assets/stage-moment.webp',
+  heroLoop: '/rem-assets/rem-hero-loop.mp4',
+  film: '/rem-assets/rem-film.mp4',
+  filmPoster: '/rem-assets/rem-film-poster.jpg',
+};
+
+const pillars: Array<{ icon: Icon; title: string; copy: string }> = [
+  {
+    icon: Compass,
+    title: 'Direção',
+    copy: 'Um roteiro intenso para o casal parar, escutar e decidir o próximo passo juntos.',
+  },
+  {
+    icon: Flame,
+    title: 'Coragem',
+    copy: 'Atividades, desafios e conversas que tiram o casamento do automático.',
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Reconexão',
+    copy: 'Momentos guiados para reconstruir confiança, presença e compromisso.',
+  },
+];
+
+const journey = [
+  'Chegada e alinhamento do casal',
+  'Dinâmicas ao ar livre e em auditório',
+  'Ferramentas práticas para conversas difíceis',
+  'Celebração, compromisso e plano de continuidade',
+];
+
+const gallery = [
+  { src: assets.joy, alt: 'Casal sorrindo durante o REM', label: 'Alegria' },
+  { src: assets.prayer, alt: 'Casal em oração durante a experiência', label: 'Presença' },
+  { src: assets.ritual, alt: 'Casal durante momento de compromisso', label: 'Compromisso' },
+  { src: assets.lake, alt: 'Casal REM perto do lago', label: 'Parceria' },
+  { src: assets.auditorium, alt: 'Casal se beijando no auditório', label: 'Cuidado' },
+  { src: assets.embrace, alt: 'Casal abraçado no percurso', label: 'Entrega' },
+];
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Data a confirmar';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Data a confirmar';
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function eventHref(edition: Edition) {
+  return `/${edition.public_slug || edition.id}`;
+}
 
 export default function PublicHome() {
-  const [editions, setEditions] = useState<any[]>([]);
+  const [editions, setEditions] = useState<Edition[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = useMemo(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchPublicEditions() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('editions')
-        .select('*, headquarters(name, city, state)')
+        .select('id, name, public_slug, start_at, end_at, headquarters(name, city, state)')
         .eq('is_public', true)
         .order('start_at', { ascending: true })
-        .limit(6);
-      
-      if (!error) setEditions(data || []);
+        .limit(3);
+
+      if (!isMounted) return;
+      if (!error) setEditions((data as Edition[]) || []);
       setLoading(false);
     }
+
     fetchPublicEditions();
+
+    return () => {
+      isMounted = false;
+    };
   }, [supabase]);
 
   return (
-    <div className="min-h-screen bg-rem-white font-sans selection:bg-rem-orange selection:text-rem-white">
-      
-      {/* Header */}
-      <header className="absolute top-0 left-0 w-full z-50 py-6 px-6 md:px-12 flex justify-between items-center bg-gradient-to-b from-rem-black/80 to-transparent">
-        <Link href="/" className="flex items-center hover:scale-105 transition-transform">
-          <Logo className="w-16 h-16 md:w-20 md:h-20" layout="horizontal" showText={true} theme="dark" />
-        </Link>
-        <nav className="hidden md:flex items-center gap-10 text-rem-white font-bold text-sm tracking-[0.2em] uppercase">
-          <Link href="/calendario" className="hover:text-rem-cyan transition-colors relative group">
-            Calendário
-            <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-rem-cyan transition-all group-hover:w-full"></span>
+    <main className="min-h-screen bg-[#f5f1e8] text-[#102124] selection:bg-[#ff6a1a] selection:text-[#fffaf0]">
+      <header className="absolute left-0 top-0 z-40 w-full px-4 py-4 sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <Link href="/" className="inline-flex items-center" aria-label="REM Brasil">
+            <Image
+              src={assets.logo}
+              alt="Reto de Empoderamiento Matrimonial"
+              width={250}
+              height={101}
+              priority
+              className="h-auto w-40 sm:w-52"
+            />
           </Link>
-          <Link href="#" className="hover:text-rem-cyan transition-colors relative group">
-            Experiência
-            <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-rem-cyan transition-all group-hover:w-full"></span>
-          </Link>
-          <Link href="#" className="hover:text-rem-cyan transition-colors relative group">
-            5 Coisas REM
-            <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-rem-cyan transition-all group-hover:w-full"></span>
-          </Link>
-          <div className="flex items-center gap-5 ml-4 border-l border-rem-white/30 pl-8">
-            <Link href="/login" className="bg-rem-cyan text-rem-teal-dark px-6 py-2 rounded-full hover:bg-rem-white transition-colors">Login</Link>
-            <Link href="#" className="hover:text-rem-cyan transition-transform hover:scale-110"><Facebook size={22} /></Link>
-            <Link href="#" className="hover:text-rem-cyan transition-transform hover:scale-110"><Instagram size={22} /></Link>
-          </div>
-        </nav>
+
+          <nav className="hidden items-center gap-7 rounded-full bg-[#061617]/85 px-6 py-3 text-sm font-bold text-[#f6fbfb] shadow-[0_18px_50px_rgba(0,0,0,0.22)] lg:flex">
+            <a href="#experiencia" className="hover:text-[#61dbe5]">Experiência</a>
+            <a href="#jornada" className="hover:text-[#61dbe5]">Jornada</a>
+            <a href="#eventos" className="hover:text-[#61dbe5]">Calendário</a>
+            <Link href="/login" className="rounded-full bg-[#36d3df] px-4 py-2 text-[#062529] hover:bg-[#fffaf0]">
+              Acesso Restrito
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <Image 
-          src="https://picsum.photos/seed/concert/1920/1080" 
-          alt="REM Experience Crowd" 
-          fill 
-          className="object-cover scale-105 animate-[pulse_20s_ease-in-out_infinite_alternate]"
-          priority
-          referrerPolicy="no-referrer"
+      <section className="relative min-h-[88svh] overflow-hidden bg-[#071719]">
+        <video
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          src={assets.heroLoop}
+          poster={assets.filmPoster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label="Filme REM Brasil com casais em encontros, palestras e momentos de reconexão"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-rem-teal-dark/60 via-rem-black/40 to-rem-black/90"></div>
-        
-        <div className="relative z-10 text-center px-4 mt-20">
-          <h1 className="text-5xl md:text-7xl lg:text-[7rem] text-rem-white font-display uppercase tracking-tight leading-[0.9] drop-shadow-2xl">
-            <span className="block text-rem-cyan mb-2">Vivencie</span>
-            <span className="block text-rem-white mb-2">Sinta</span>
-            <span className="block text-rem-orange">Experimente</span>
-          </h1>
-          <p className="mt-8 text-rem-gray font-serif text-lg md:text-xl max-w-2xl mx-auto font-light tracking-wide">
-            O evento que transformará seu casamento para sempre.
-          </p>
-          <Link href="/calendario" className="mt-12 bg-rem-orange text-rem-white font-bold text-sm md:text-base uppercase tracking-[0.2em] px-10 py-5 rounded-full hover:bg-rem-red transition-all hover:shadow-[0_0_30px_rgba(255,85,0,0.5)] hover:-translate-y-1 flex items-center gap-3 mx-auto w-fit">
-            Participe do Desafio <ArrowRight size={20} />
-          </Link>
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,16,18,0.93)_0%,rgba(5,16,18,0.70)_43%,rgba(5,16,18,0.18)_100%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-[linear-gradient(180deg,rgba(5,16,18,0)_0%,#f5f1e8_100%)]" />
+
+        <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-7xl items-end px-4 pb-20 pt-36 sm:px-6 lg:px-10 lg:pb-24">
+          <div className="max-w-3xl text-[#fffaf0]">
+            <p className="mb-5 inline-flex items-center rounded-full bg-[#ff6a1a] px-4 py-2 text-xs font-black uppercase text-[#fffaf0]">
+              REM Brasil 2026
+            </p>
+            <h1 className="max-w-4xl text-5xl font-black uppercase leading-[0.95] sm:text-7xl lg:text-8xl">
+              Seu casamento foi criado para vencer
+            </h1>
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#d7e8e8] sm:text-xl">
+              Uma experiência presencial para casais que decidiram parar de sobreviver e voltar a caminhar como equipe.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="#eventos"
+                className="inline-flex min-h-14 items-center justify-center rounded-full bg-[#ff6a1a] px-7 text-sm font-black uppercase text-[#fffaf0] shadow-[0_18px_40px_rgba(255,106,26,0.32)] transition hover:-translate-y-0.5 hover:bg-[#e9550d]"
+              >
+                Ver próximas datas <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+              <a
+                href="#filme"
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#fffaf0]/40 px-7 text-sm font-black uppercase text-[#fffaf0] transition hover:-translate-y-0.5 hover:border-[#61dbe5] hover:text-[#61dbe5]"
+              >
+                Assistir filme <Play className="ml-2 h-5 w-5" />
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Orange Banner */}
-      <section className="bg-rem-orange py-12 px-6 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent"></div>
-        <h2 className="relative z-10 text-rem-white font-display text-3xl md:text-5xl uppercase tracking-wide leading-tight max-w-5xl mx-auto">
-          Seu casamento não foi criado para ser destruído, <br className="hidden md:block" />
-          abandonado ou dado como perdido.
-        </h2>
+      <section className="bg-[#f5f1e8] px-4 py-8 sm:px-6 lg:px-10">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px overflow-hidden rounded-[6px] bg-[#17353a] md:grid-cols-4">
+          {[
+            ['2 dias', 'imersivos'],
+            ['Casais', 'lado a lado'],
+            ['Brasil', 'em expansão'],
+            ['Fé e prática', 'no mesmo caminho'],
+          ].map(([value, label]) => (
+            <div key={value} className="bg-[#092629] px-5 py-6 text-[#fffaf0]">
+              <p className="text-3xl font-black uppercase sm:text-4xl">{value}</p>
+              <p className="mt-2 text-sm font-semibold text-[#9bdde2]">{label}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
-      {/* REM Info Section */}
-      <section className="relative py-32 px-6 md:px-12 overflow-hidden bg-rem-black">
-        <div className="absolute inset-0 opacity-40">
-          <Image 
-            src="https://picsum.photos/seed/marriage/1920/1080" 
-            alt="Couple hugging" 
-            fill 
-            className="object-cover object-top grayscale"
-            referrerPolicy="no-referrer"
+      <section id="experiencia" className="bg-[#f5f1e8] px-4 py-16 sm:px-6 lg:px-10 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <p className="text-sm font-black uppercase text-[#d95412]">A experiência</p>
+            <h2 className="mt-4 text-4xl font-black uppercase leading-none text-[#102124] sm:text-6xl">
+              Não é palestra. É decisão em movimento.
+            </h2>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[#415b60]">
+              O REM combina direção espiritual, exercícios de comunicação, desafios em dupla e momentos de cura emocional para que o casal volte a se enxergar.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {pillars.map(({ icon: IconComponent, title, copy }) => (
+              <article key={title} className="rounded-[6px] bg-[#fffaf0] p-6 shadow-[0_18px_44px_rgba(9,38,41,0.10)]">
+                <IconComponent className="h-8 w-8 text-[#ff6a1a]" strokeWidth={1.8} />
+                <h3 className="mt-6 text-xl font-black uppercase text-[#092629]">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[#51686d]">{copy}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid bg-[#081719] text-[#fffaf0] lg:grid-cols-2">
+        <div className="relative min-h-[520px]">
+          <Image
+            src={assets.forest}
+            alt="Casais reunidos no início de uma trilha REM"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-rem-teal-dark/95 via-rem-teal-dark/80 to-transparent"></div>
-        
-        <div className="relative z-10 max-w-4xl text-rem-white">
-          <h2 className="text-7xl md:text-[9rem] font-display text-rem-cyan mb-8 leading-none drop-shadow-2xl">REM</h2>
-          <div className="w-24 h-2 bg-rem-orange mb-10"></div>
-          <p className="text-xl md:text-3xl font-serif font-light mb-8 leading-relaxed text-rem-gray">
-            Seu casamento foi criado para vencer. <strong className="text-rem-white font-bold">O &quot;até que a morte nos separe&quot; existe sim!</strong> Se você se esforçou tanto para ter o casamento dos seus sonhos, esforce-se para ter o matrimônio dos seus sonhos.
-          </p>
-          <p className="text-2xl md:text-4xl font-display text-rem-orange uppercase tracking-wide">
-            Seu casamento é o seu melhor investimento!
-          </p>
-        </div>
-        
-        {/* Faded Background Text */}
-        <div className="absolute bottom-0 right-0 opacity-5 pointer-events-none overflow-hidden">
-          <h2 className="text-[15rem] font-display text-rem-white leading-none translate-y-1/4 translate-x-1/4 whitespace-nowrap">MR. EXTREME</h2>
-        </div>
-      </section>
-
-      {/* Events Grid Section */}
-      <section className="bg-rem-white py-32 px-6 md:px-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-5xl md:text-7xl font-display text-rem-teal-dark uppercase tracking-tight mb-6">Próximos Eventos</h2>
-            <p className="text-rem-teal font-serif text-xl">Encontre um REM perto de você</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            
-            {loading ? (
-              [1, 2, 3].map(i => (
-                <div key={i} className="h-96 bg-gray-100 animate-pulse rounded-2xl"></div>
-              ))
-            ) : editions.length === 0 ? (
-              <div className="col-span-full text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-500 font-bold uppercase tracking-widest">
-                Nenhum evento público agendado no momento.
-              </div>
-            ) : (
-              editions.map((edition) => (
-                <div key={edition.id} className="group bg-rem-white rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)] transform hover:-translate-y-2 transition-all duration-500 border border-gray-100">
-                  <div className={`h-48 bg-rem-teal-dark relative flex items-center justify-center p-6 overflow-hidden`}>
-                    <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                    <h3 className={`relative z-10 text-4xl font-display text-rem-white uppercase text-center leading-none tracking-wide group-hover:scale-110 transition-transform duration-500`}>{edition.headquarters?.city}</h3>
-                  </div>
-                  
-                  <div className="bg-rem-black text-rem-white p-6">
-                    <div className="flex items-center gap-3 mb-3 text-rem-gray">
-                      <Calendar size={18} className="text-rem-cyan" />
-                      <span className="font-bold text-sm uppercase tracking-wider">{new Date(edition.start_at).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                    <div className="flex items-center gap-3 mb-6 text-rem-gray">
-                      <MapPin size={18} className="text-rem-cyan" />
-                      <span className="font-bold text-sm uppercase tracking-wider">{edition.headquarters?.name}</span>
-                    </div>
-                    <div className="inline-block bg-rem-teal-dark text-rem-cyan text-xs font-bold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-6 border border-rem-cyan/30">
-                      Inscrições Abertas
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <Link 
-                        href={`/${edition.public_slug || edition.id}`}
-                        className="w-full bg-rem-orange text-rem-white font-bold py-4 rounded-xl hover:bg-rem-red transition-colors uppercase text-sm tracking-widest flex justify-center items-center gap-2"
-                      >
-                        Inscrições <ArrowRight size={16} />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-
-            {/* Coming Soon Card */}
-            <div className="bg-gray-50 rounded-2xl overflow-hidden shadow-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-10 text-center min-h-[400px]">
-              <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-6">
-                <MapPin size={32} className="text-gray-400" />
-              </div>
-              <h3 className="text-3xl font-display text-rem-teal-dark uppercase leading-tight mb-4">Em breve na<br/>Sua Cidade</h3>
-              <p className="text-gray-500 font-serif mb-8">Uma experiência de dois dias que transformará seu casamento.</p>
-              <Link href="/calendario" className="bg-rem-teal-dark text-rem-white font-bold py-3 px-8 rounded-full hover:bg-rem-teal transition-colors uppercase text-sm tracking-widest">
-                Ver Calendário
-              </Link>
+        <div className="flex items-center px-4 py-16 sm:px-10 lg:px-16">
+          <div className="max-w-xl">
+            <p className="text-sm font-black uppercase text-[#61dbe5]">Para quem é</p>
+            <h2 className="mt-4 text-4xl font-black uppercase leading-none sm:text-6xl">
+              Para casais que ainda querem lutar juntos
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-[#c8dddd]">
+              Para quem sente distância, rotina, cansaço ou feridas abertas, mas ainda reconhece que existe uma aliança maior do que a crise.
+            </p>
+            <div className="mt-8 grid gap-3">
+              {[
+                'Vocês precisam conversar sem se atacar.',
+                'Vocês querem recuperar alegria e cumplicidade.',
+                'Vocês buscam ferramentas práticas, não frases prontas.',
+              ].map((item) => (
+                <p key={item} className="flex gap-3 text-base text-[#effafa]">
+                  <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-[#61dbe5]" />
+                  <span>{item}</span>
+                </p>
+              ))}
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-3">
-        {/* Couple Test */}
-        <div className="bg-rem-orange py-32 px-12 flex flex-col items-center justify-center text-center group overflow-hidden relative">
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500"></div>
-          <div className="w-32 h-32 mb-10 relative transform group-hover:scale-110 transition-transform duration-500">
-            <CheckSquare className="w-full h-full text-rem-white drop-shadow-2xl" strokeWidth={1.5} />
+      <section id="jornada" className="bg-[#fffaf0] px-4 py-16 sm:px-6 lg:px-10 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[6px]">
+              <Image src={assets.intimate} alt="Casal em momento de oração" fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
+            </div>
+            <div className="relative mt-10 aspect-[4/5] overflow-hidden rounded-[6px]">
+              <Image src={assets.canoe} alt="Casal remando em uma canoa" fill sizes="(min-width: 1024px) 25vw, 50vw" className="object-cover" />
+            </div>
           </div>
-          <h2 className="text-5xl font-display text-rem-white uppercase mb-6 tracking-wide relative z-10">Teste de Casal</h2>
-          <p className="text-rem-white/90 font-serif mb-10 max-w-sm relative z-10">Descubra o estado atual do seu casamento com nossa avaliação gratuita.</p>
-          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md relative z-10">
-            <button className="flex-1 bg-rem-black text-rem-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 hover:bg-rem-teal-dark transition-colors uppercase text-sm tracking-wider">
-              <Facebook size={20} /> Facebook
-            </button>
-            <button className="flex-1 bg-rem-black text-rem-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 hover:bg-rem-teal-dark transition-colors uppercase text-sm tracking-wider">
-              <Instagram size={20} /> Instagram
-            </button>
+
+          <div>
+            <p className="text-sm font-black uppercase text-[#d95412]">A jornada</p>
+            <h2 className="mt-4 text-4xl font-black uppercase leading-none text-[#102124] sm:text-6xl">
+              Do silêncio ao compromisso
+            </h2>
+            <ol className="mt-8 space-y-5">
+              {journey.map((item, index) => (
+                <li key={item} className="flex gap-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#092629] text-sm font-black text-[#61dbe5]">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="pt-2 text-lg font-bold text-[#253f44]">{item}</span>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
+      </section>
 
-        {/* Podcast */}
-        <div className="bg-rem-black py-32 px-12 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-          <div className="absolute inset-0 opacity-5 flex items-center justify-center transform group-hover:scale-150 transition-transform duration-1000">
-            <Mic className="w-[40rem] h-[40rem] text-rem-white" />
+      <section id="filme" className="bg-[#092629] px-4 py-16 text-[#fffaf0] sm:px-6 lg:px-10 lg:py-24">
+        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+          <div>
+            <p className="text-sm font-black uppercase text-[#61dbe5]">Veja por dentro</p>
+            <h2 className="mt-4 text-4xl font-black uppercase leading-none sm:text-6xl">
+              Setenta segundos para sentir o REM
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-[#c8dddd]">
+              Um recorte direto do encontro: casais chegando, líderes conduzindo, conversas difíceis, oração, celebração e decisões que seguem para casa.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {['Filme horizontal', 'Com áudio', 'Otimizado para web'].map((item) => (
+                <span key={item} className="rounded-full border border-[#61dbe5]/35 px-4 py-2 text-xs font-black uppercase text-[#9fe8ec]">
+                  {item}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="w-48 h-48 rounded-full overflow-hidden mb-10 relative z-10 border-4 border-rem-cyan shadow-[0_0_50px_rgba(55,210,226,0.3)] group-hover:border-rem-orange transition-colors duration-500">
-            <Image 
-              src="https://picsum.photos/seed/podcast/800/800" 
-              alt="Podcast Host" 
-              fill 
-              className="object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-              referrerPolicy="no-referrer"
+
+          <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-[8px] bg-[#061617] shadow-[0_24px_70px_rgba(0,0,0,0.32)]">
+            <video
+              className="aspect-video h-auto w-full object-cover"
+              src={assets.film}
+              poster={assets.filmPoster}
+              controls
+              playsInline
+              preload="metadata"
             />
           </div>
-          <h2 className="text-5xl font-display text-rem-white uppercase mb-6 tracking-wide z-10">Podcast</h2>
-          <p className="text-rem-gray font-serif mb-10 max-w-sm z-10">Ouça conselhos, testemunhos e ferramentas para fortalecer seu relacionamento.</p>
-          <button className="bg-rem-cyan text-rem-teal-dark font-bold py-4 px-12 rounded-xl hover:bg-rem-white transition-colors uppercase text-sm tracking-widest z-10 flex items-center gap-2">
-            Ouvir Agora <ArrowRight size={16} />
-          </button>
-        </div>
-
-        {/* Blog */}
-        <div className="bg-rem-cyan py-32 px-12 flex flex-col items-center justify-center text-center group overflow-hidden relative">
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500"></div>
-          <div className="w-32 h-32 mb-10 relative transform group-hover:scale-110 transition-transform duration-500">
-            <Laptop className="w-full h-full text-rem-teal-dark drop-shadow-2xl" strokeWidth={1.5} />
-          </div>
-          <h2 className="text-5xl font-display text-rem-teal-dark uppercase mb-6 tracking-wide relative z-10">Blog</h2>
-          <p className="text-rem-teal-dark/80 font-serif mb-10 max-w-sm relative z-10">Artigos e recursos desenvolvidos para o crescimento do seu casamento.</p>
-          <button className="bg-rem-teal-dark text-rem-white font-bold py-4 px-12 rounded-xl hover:bg-rem-black transition-colors uppercase text-sm tracking-widest relative z-10 flex items-center gap-2">
-            Ler Artigos <ArrowRight size={16} />
-          </button>
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section className="relative py-32 px-6 md:px-12 overflow-hidden bg-rem-black">
-        <div className="absolute inset-0 opacity-30">
-          <Image 
-            src="https://picsum.photos/seed/contact/1920/1080" 
-            alt="Contact background" 
-            fill 
-            className="object-cover"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-rem-black via-rem-black/80 to-transparent"></div>
-        
-        <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          
-          <div>
-            <h2 className="text-5xl md:text-7xl font-display text-rem-white uppercase mb-6 drop-shadow-lg leading-tight">
-              Tem <br/><span className="text-rem-cyan">Dúvidas?</span>
+      <section className="bg-[#f5f1e8] px-4 py-16 sm:px-6 lg:px-10 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <p className="text-sm font-black uppercase text-[#d95412]">Momentos REM</p>
+            <h2 className="mt-4 text-4xl font-black uppercase leading-none text-[#102124] sm:text-6xl">
+              A transformação aparece nos detalhes
             </h2>
-            <p className="text-rem-gray font-serif text-lg mb-10 max-w-md">
-              Estamos aqui para ajudar. Escreva para nós e nossa equipe entrará em contato o mais breve possível.
-            </p>
-            
-            <div className="space-y-6">
-              <div className="flex items-center gap-4 text-rem-white">
-                <div className="w-12 h-12 bg-rem-teal-dark rounded-full flex items-center justify-center">
-                  <MapPin size={20} className="text-rem-cyan" />
-                </div>
-                <div>
-                  <h4 className="font-bold uppercase tracking-wider text-sm">Localização Principal</h4>
-                  <p className="text-rem-gray font-serif text-sm">Miami, Flórida, EUA</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-rem-white">
-                <div className="w-12 h-12 bg-rem-teal-dark rounded-full flex items-center justify-center">
-                  <Mic size={20} className="text-rem-cyan" />
-                </div>
-                <div>
-                  <h4 className="font-bold uppercase tracking-wider text-sm">Contato Direto</h4>
-                  <p className="text-rem-gray font-serif text-sm">info@matrimoniosrem.com</p>
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div className="bg-rem-white/5 backdrop-blur-md p-8 md:p-12 rounded-3xl border border-rem-white/10">
-            <form className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-rem-white text-xs font-bold uppercase tracking-widest">Nome Completo</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-rem-black/50 text-rem-white border border-rem-white/20 rounded-xl focus:outline-none focus:border-rem-cyan focus:ring-1 focus:ring-rem-cyan transition-colors"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-rem-white text-xs font-bold uppercase tracking-widest">Telefone</label>
-                  <input 
-                    type="tel" 
-                    className="w-full px-5 py-4 bg-rem-black/50 text-rem-white border border-rem-white/20 rounded-xl focus:outline-none focus:border-rem-cyan focus:ring-1 focus:ring-rem-cyan transition-colors"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-rem-white text-xs font-bold uppercase tracking-widest">E-mail</label>
-                <input 
-                  type="email" 
-                  className="w-full px-5 py-4 bg-rem-black/50 text-rem-white border border-rem-white/20 rounded-xl focus:outline-none focus:border-rem-cyan focus:ring-1 focus:ring-rem-cyan transition-colors"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-rem-white text-xs font-bold uppercase tracking-widest">Mensagem</label>
-                <textarea 
-                  rows={4}
-                  className="w-full px-5 py-4 bg-rem-black/50 text-rem-white border border-rem-white/20 rounded-xl focus:outline-none focus:border-rem-cyan focus:ring-1 focus:ring-rem-cyan resize-none transition-colors"
-                ></textarea>
-              </div>
-              <button 
-                type="submit" 
-                className="w-full bg-rem-cyan text-rem-teal-dark font-bold py-5 rounded-xl hover:bg-rem-white transition-colors uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(55,210,226,0.2)]"
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {gallery.map((item, index) => (
+              <figure
+                key={item.src}
+                className={`group relative overflow-hidden rounded-[6px] bg-[#102124] ${
+                  index === 0 || index === 5 ? 'md:col-span-2' : ''
+                }`}
               >
-                Enviar Mensagem
-              </button>
-            </form>
+                <div className="relative aspect-[16/11]">
+                  <Image
+                    src={item.src}
+                    alt={item.alt}
+                    fill
+                    loading="eager"
+                    sizes={index === 0 || index === 5 ? '(min-width: 768px) 66vw, 100vw' : '(min-width: 768px) 33vw, 100vw'}
+                    className="object-cover transition duration-500 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <figcaption className="absolute bottom-3 left-3 rounded-full bg-[#fffaf0] px-3 py-1 text-xs font-black uppercase text-[#092629]">
+                  {item.label}
+                </figcaption>
+              </figure>
+            ))}
           </div>
-
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-rem-black pt-20 pb-10 px-6 md:px-12 border-t border-rem-white/10">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-          <div className="col-span-1 md:col-span-2">
-            <Logo className="w-24 h-24 mb-6" layout="horizontal" showText={true} theme="dark" />
-            <p className="text-rem-gray font-serif max-w-sm mb-8">
-              Empoderando casamentos para alcançarem seu potencial máximo através de experiências transformadoras.
-            </p>
-            <div className="flex gap-4">
-              <Link href="#" className="w-10 h-10 rounded-full bg-rem-white/10 flex items-center justify-center text-rem-white hover:bg-rem-cyan hover:text-rem-teal-dark transition-all"><Facebook size={18} /></Link>
-              <Link href="#" className="w-10 h-10 rounded-full bg-rem-white/10 flex items-center justify-center text-rem-white hover:bg-rem-cyan hover:text-rem-teal-dark transition-all"><Instagram size={18} /></Link>
+      <section id="eventos" className="bg-[#fffaf0] px-4 py-16 sm:px-6 lg:px-10 lg:py-24">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black uppercase text-[#d95412]">Calendário</p>
+              <h2 className="mt-4 text-4xl font-black uppercase leading-none text-[#102124] sm:text-6xl">
+                Encontre uma edição perto de você
+              </h2>
             </div>
+            <Link
+              href="/calendario"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#092629] px-6 text-sm font-black uppercase text-[#092629] transition hover:bg-[#092629] hover:text-[#fffaf0]"
+            >
+              Ver calendário completo
+            </Link>
           </div>
-          
-          <div>
-            <h4 className="text-rem-white font-bold uppercase tracking-widest mb-6">Links Rápidos</h4>
-            <ul className="space-y-4">
-              <li><Link href="/" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Início</Link></li>
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Experiência REM</Link></li>
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">5 Coisas REM</Link></li>
-              <li><Link href="/calendario" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Eventos</Link></li>
-            </ul>
-          </div>
-          
-          <div>
-            <h4 className="text-rem-white font-bold uppercase tracking-widest mb-6">Legal</h4>
-            <ul className="space-y-4">
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Termos e Condições</Link></li>
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Política de Privacidade</Link></li>
-              <li><Link href="#" className="text-rem-gray hover:text-rem-cyan transition-colors font-serif">Política de Cookies</Link></li>
-            </ul>
+
+          <div className="mt-10 grid gap-4 lg:grid-cols-3">
+            {loading ? (
+              [0, 1, 2].map((item) => (
+                <div key={item} className="h-64 animate-pulse rounded-[6px] bg-[#e3ddd0]" />
+              ))
+            ) : editions.length > 0 ? (
+              editions.map((edition) => (
+                <article key={edition.id} className="rounded-[6px] bg-[#092629] p-6 text-[#fffaf0] shadow-[0_18px_44px_rgba(9,38,41,0.16)]">
+                  <p className="inline-flex rounded-full bg-[#36d3df] px-3 py-1 text-xs font-black uppercase text-[#062529]">
+                    Inscrições abertas
+                  </p>
+                  <h3 className="mt-8 text-3xl font-black uppercase">
+                    {edition.headquarters?.city || edition.name || 'REM Brasil'}
+                  </h3>
+                  <div className="mt-6 space-y-3 text-[#d8eeee]">
+                    <p className="flex gap-3">
+                      <Calendar className="mt-1 h-5 w-5 shrink-0 text-[#ff6a1a]" />
+                      <span>{formatDate(edition.start_at)}</span>
+                    </p>
+                    <p className="flex gap-3">
+                      <MapPin className="mt-1 h-5 w-5 shrink-0 text-[#ff6a1a]" />
+                      <span>
+                        {[edition.headquarters?.name, edition.headquarters?.state].filter(Boolean).join(', ') || 'Local a confirmar'}
+                      </span>
+                    </p>
+                  </div>
+                  <Link
+                    href={eventHref(edition)}
+                    className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#ff6a1a] px-5 text-sm font-black uppercase text-[#fffaf0] transition hover:bg-[#e9550d]"
+                  >
+                    Quero participar <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </article>
+              ))
+            ) : (
+              <article className="rounded-[6px] bg-[#092629] p-8 text-[#fffaf0] lg:col-span-2">
+                <h3 className="text-3xl font-black uppercase">Novas datas em preparação</h3>
+                <p className="mt-4 max-w-2xl text-lg leading-8 text-[#c8dddd]">
+                  A agenda pública ainda não tem inscrições abertas. Fale com a equipe REM para ser avisado quando uma edição estiver disponível.
+                </p>
+              </article>
+            )}
+
+            <article className="rounded-[6px] border border-[#d7cec0] bg-[#f5f1e8] p-6 text-[#102124]">
+              <Users className="h-9 w-9 text-[#d95412]" />
+              <h3 className="mt-8 text-3xl font-black uppercase">Leve o REM para sua cidade</h3>
+              <p className="mt-4 leading-7 text-[#51686d]">
+                Converse com a equipe nacional e entenda os próximos passos para receber uma edição.
+              </p>
+              <a
+                href="mailto:info@matrimoniosrem.com"
+                className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#092629] px-5 text-sm font-black uppercase text-[#fffaf0] transition hover:bg-[#173f45]"
+              >
+                Falar com a equipe
+              </a>
+            </article>
           </div>
         </div>
-        
-        <div className="max-w-7xl mx-auto pt-8 border-t border-rem-white/10 text-center md:text-left flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-rem-gray/50 text-sm font-serif">
-            Copyright © {new Date().getFullYear()} Matrimônios REM. Todos os direitos reservados.
+      </section>
+
+      <section className="relative overflow-hidden bg-[#081719] px-4 py-20 text-[#fffaf0] sm:px-6 lg:px-10 lg:py-28">
+        <Image
+          src={assets.mountain}
+          alt="Casais reunidos em uma montanha durante o REM"
+          fill
+          sizes="100vw"
+          className="object-cover opacity-35"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,#081719_0%,rgba(8,23,25,0.82)_45%,rgba(8,23,25,0.45)_100%)]" />
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <h2 className="text-4xl font-black uppercase leading-none sm:text-6xl lg:text-7xl">
+              O melhor investimento do seu casamento é o próximo passo de vocês.
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-[#d8eeee]">
+              Decidam juntos. Participem juntos. Voltem para casa com uma direção prática.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="#eventos"
+                className="inline-flex min-h-14 items-center justify-center rounded-full bg-[#ff6a1a] px-7 text-sm font-black uppercase text-[#fffaf0] transition hover:bg-[#e9550d]"
+              >
+                Escolher uma edição <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+              <a
+                href="mailto:info@matrimoniosrem.com"
+                className="inline-flex min-h-14 items-center justify-center rounded-full border border-[#fffaf0]/35 px-7 text-sm font-black uppercase text-[#fffaf0] transition hover:border-[#61dbe5] hover:text-[#61dbe5]"
+              >
+                Tirar dúvidas <MessageCircle className="ml-2 h-5 w-5" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-[#061617] px-4 py-10 text-[#d8eeee] sm:px-6 lg:px-10">
+        <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
+          <Image src={assets.logo} alt="REM Brasil" width={220} height={89} className="h-auto w-44" />
+          <div className="flex flex-wrap gap-4">
+            <a href="#" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#12383d] text-[#fffaf0] hover:bg-[#36d3df] hover:text-[#062529]" aria-label="Facebook">
+              <Facebook className="h-5 w-5" />
+            </a>
+            <a href="#" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#12383d] text-[#fffaf0] hover:bg-[#36d3df] hover:text-[#062529]" aria-label="Instagram">
+              <Instagram className="h-5 w-5" />
+            </a>
+          </div>
+          <p className="max-w-md text-sm leading-6 text-[#9fbec2]">
+            Reto de Empoderamiento Matrimonial. Experiências para casais que escolheram caminhar juntos.
           </p>
-          <p className="text-rem-gray/50 text-sm font-serif">
-            Projetado para transformar.
-          </p>
+          <div className="flex items-center gap-2 text-sm font-bold text-[#9fbec2]">
+            <ShieldCheck className="h-5 w-5 text-[#61dbe5]" />
+            <span>{new Date().getFullYear()} REM Brasil</span>
+          </div>
         </div>
       </footer>
-
-    </div>
+    </main>
   );
 }

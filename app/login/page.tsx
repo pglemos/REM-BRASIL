@@ -34,7 +34,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-surface-container-low">
       <div className="max-w-md w-full bg-white p-8 rounded-sm shadow-sm border border-outline/30">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black editorial-title text-on-surface uppercase">REM OS</h1>
+          <p className="text-xs technical-label font-black text-pulse-cyan uppercase mb-2">REM OS</p>
+          <h1 className="text-3xl font-black editorial-title text-on-surface uppercase">Acesso Restrito</h1>
           <p className="text-on-surface-variant text-sm mt-2">Control Center Brasil</p>
         </div>
 
@@ -53,6 +54,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
               className="w-full px-4 py-2.5 border border-outline/50 rounded-sm bg-surface-container focus:outline-none focus:ring-pulse-cyan focus:border-pulse-cyan text-sm"
               required
             />
@@ -66,6 +68,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
               className="w-full px-4 py-2.5 border border-outline/50 rounded-sm bg-surface-container focus:outline-none focus:ring-pulse-cyan focus:border-pulse-cyan text-sm"
               required
             />
@@ -76,7 +79,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-pulse-cyan text-white py-3 rounded-sm font-black text-xs technical-label uppercase shadow-lg shadow-pulse-cyan/20 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
-            {loading ? 'Entrando...' : 'Entrar'}
+            {loading ? 'Entrando...' : 'Entrar no Sistema'}
           </button>
         </form>
       </div>

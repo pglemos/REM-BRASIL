@@ -1,7 +1,11 @@
+'use client';
+
 import Link from 'next/link';
-import { Calendar as CalendarIcon, MapPin, Search, ChevronRight, Filter } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar as CalendarIcon, MapPin, Search, ChevronRight } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 
+export default function CalendarPage() {
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('Todos os meses');
 

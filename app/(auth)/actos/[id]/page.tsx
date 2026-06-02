@@ -48,6 +48,11 @@ export default function ActoDetailsPage() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from('acto_comments')
@@ -104,11 +109,6 @@ export default function ActoDetailsPage() {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema),
@@ -669,20 +669,6 @@ export default function ActoDetailsPage() {
                 />
                 <button onClick={handleAddComment} className="bg-pulse-cyan text-white px-4 py-2 rounded-sm text-xs font-black uppercase">Enviar</button>
               </div>
-            </div>
-          </section>
-                      <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-2">Estado Emocional (Depois)</h3>
-                      <p className="text-sm text-on-surface">{actoVersion.emotional_state_after || 'Não definido.'}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-xs technical-label font-black uppercase text-on-surface-variant mb-2">Inimigo a Atacar</h3>
-                    <p className="text-sm text-on-surface">{actoVersion.enemy_to_attack || 'Não definido.'}</p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-on-surface-variant italic">Nenhuma versão de conteúdo vinculada a este ACTO.</p>
-              )}
             </div>
           </section>
 

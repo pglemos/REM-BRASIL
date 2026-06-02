@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('homepage has correct title and login link', async ({ page }) => {
   await page.goto('/');
   
-  // Verifica se o título da página está correto
-  await expect(page).toHaveTitle(/REM OS/);
+  // Verifica se o título público da landing está correto
+  await expect(page).toHaveTitle(/REM Brasil 2026/);
   
   // Verifica se o link de login está visível
   const loginLink = page.getByRole('link', { name: /Acesso Restrito/i });

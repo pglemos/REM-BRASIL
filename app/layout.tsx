@@ -14,8 +14,8 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'REM OS | Control Center',
-  description: 'Plataforma Nacional de Gestão do REM Brasil',
+  title: 'REM Brasil 2026 | Reto de Empoderamiento Matrimonial',
+  description: 'Experiência presencial para casais que querem reconstruir direção, cumplicidade e compromisso.',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
